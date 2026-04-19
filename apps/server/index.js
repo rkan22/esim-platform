@@ -54,3 +54,23 @@ app.get("/api/dashboard/stats", (_req, res) => {
 app.listen(PORT, () => {
   console.log(`API running on ${PORT}`);
 });
+const supportTickets = [];
+
+app.get("/api/support", (req, res) => {
+  res.json({ tickets: supportTickets });
+});
+
+app.post("/api/support", (req, res) => {
+  const { message } = req.body;
+
+  const ticket = {
+    id: Date.now().toString(),
+    message,
+    status: "Open",
+    createdBy: "admin@demo.com",
+  };
+
+  supportTickets.unshift(ticket);
+
+  res.json({ success: true, ticket });
+});
