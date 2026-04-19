@@ -49,6 +49,7 @@ export default function DashboardPage() {
 
   function logout() {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(API_BASE_KEY);
     router.push("/");
   }
 
@@ -63,12 +64,36 @@ export default function DashboardPage() {
     >
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 24 }}>
         <h1>Dashboard</h1>
-        <button onClick={logout} style={buttonStyle}>
+        <button
+          onClick={logout}
+          style={{
+            height: 42,
+            padding: "0 16px",
+            borderRadius: 12,
+            border: "1px solid #333",
+            background: "#111",
+            color: "#fff",
+            cursor: "pointer",
+          }}
+        >
           Logout
         </button>
       </div>
 
-      {error ? <div style={errorStyle}>{error}</div> : null}
+      {error ? (
+        <div
+          style={{
+            background: "#2a1111",
+            border: "1px solid #5a2222",
+            color: "#ffb3b3",
+            padding: 12,
+            borderRadius: 12,
+            marginBottom: 14,
+          }}
+        >
+          {error}
+        </div>
+      ) : null}
 
       {!stats ? (
         <div>Loading...</div>
@@ -99,22 +124,3 @@ function Card({ title, value }) {
     </div>
   );
 }
-
-const buttonStyle = {
-  height: 42,
-  padding: "0 16px",
-  borderRadius: 12,
-  border: "1px solid #333",
-  background: "#111",
-  color: "#fff",
-  cursor: "pointer",
-};
-
-const errorStyle = {
-  background: "#2a1111",
-  border: "1px solid #5a2222",
-  color: "#ffb3b3",
-  padding: 12,
-  borderRadius: 12,
-  marginBottom: 14,
-};
