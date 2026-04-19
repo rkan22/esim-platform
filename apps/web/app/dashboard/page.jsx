@@ -6,46 +6,54 @@ import { useRouter } from "next/navigation";
 const TOKEN_KEY = "esim_platform_token";
 const API_BASE_KEY = "esim_platform_api_base";
 
-async function apiGet(path) {
-  const token = localStorage.getItem(TOKEN_KEY) || "";
-  const apiBase = (localStorage.getItem(API_BASE_KEY) || "").replace(/\/$/, "");
-
-  if (!token || !apiBase) {
-    throw new Error("Missing token or API base");
-  }
-
-  const res = await fetch(`${apiBase}${path}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  const data = await res.json().catch(() => ({}));
-
-  if (!res.ok) {
-    throw new Error(data?.error || "Request failed");
-  }
-
-  return data;
-}
-
 export default function DashboardPage() {
   const router = useRouter();
   const [stats, setStats] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    async function load() {
-      try {
-        const data = await apiGet("/api/dashboard/stats");
-        setStats(data);
-      } catch (err) {
-        setError(err.message || "Failed");
-      }
-    }
-
-    load();
+    loadStats();
   }, []);
+
+  async function safeJson(res) {
+    const text = await res.text();
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new Error(`Backend JSON dönmüyor. Gelen cevap: ${text.slice(0, 80)}`);
+    }
+  }
+
+  async function loadStats() {
+    try {
+      setError("");
+
+      const token = localStorage.getItem(TOKEN_KEY) || "";
+      const apiBase = (localStorage.getItem(API_BASE_KEY) || "").trim().replace(/\/+$/, "");
+
+      if (!token || !apiBase) {
+        router.push("/");
+        return;
+      }
+
+      const res = await fetch(`${apiBase}/api/dashboard/stats`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await safeJson(res);
+
+      if (!res.ok) {
+        throw new Error(data.error || "Load failed");
+      }
+
+      setStats(data);
+    } catch (err) {
+      setError(err.message || "Load failed");
+    }
+  }
 
   function logout() {
     localStorage.removeItem(TOKEN_KEY);
@@ -54,58 +62,19 @@ export default function DashboardPage() {
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#000",
-        color: "#fff",
-        padding: 24,
-      }}
-    >
-      <div style={{ marginBottom: 24 }}>
-        <a href="/dashboard" style={{ color: "#fff", marginRight: 12 }}>Dashboard</a>
-        <a href="/orders" style={{ color: "#fff", marginRight: 12 }}>Orders</a>
-        <a href="/wallet" style={{ color: "#fff", marginRight: 12 }}>Wallet</a>
-        <a href="/support" style={{ color: "#fff", marginRight: 12 }}>Support</a>
+    <main style={pageStyle}>
+      <Nav />
+      <div style={headerRowStyle}>
+        <h1 style={{ fontSize: 58, margin: 0 }}>Dashboard</h1>
+        <button onClick={logout} style={logoutStyle}>Logout</button>
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 24 }}>
-        <h1>Dashboard</h1>
-        <button
-          onClick={logout}
-          style={{
-            height: 42,
-            padding: "0 16px",
-            borderRadius: 12,
-            border: "1px solid #333",
-            background: "#111",
-            color: "#fff",
-            cursor: "pointer",
-          }}
-        >
-          Logout
-        </button>
-      </div>
-
-      {error ? (
-        <div
-          style={{
-            background: "#2a1111",
-            border: "1px solid #5a2222",
-            color: "#ffb3b3",
-            padding: 12,
-            borderRadius: 12,
-            marginBottom: 14,
-          }}
-        >
-          {error}
-        </div>
-      ) : null}
+      {error ? <div style={errorStyle}>{error}</div> : null}
 
       {!stats ? (
-        <div>Loading...</div>
+        <div style={{ fontSize: 28 }}>Loading...</div>
       ) : (
-        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(4, 1fr)" }}>
+        <div style={gridStyle}>
           <Card title="Wallet Balance" value={`€${stats.walletBalance}`} />
           <Card title="Today Revenue" value={`€${stats.todayRevenue}`} />
           <Card title="Orders" value={String(stats.orders)} />
@@ -116,18 +85,73 @@ export default function DashboardPage() {
   );
 }
 
-function Card({ title, value }) {
+function Nav() {
   return (
-    <div
-      style={{
-        background: "#111",
-        border: "1px solid #222",
-        borderRadius: 18,
-        padding: 20,
-      }}
-    >
-      <div style={{ color: "#aaa", marginBottom: 8 }}>{title}</div>
-      <div style={{ fontSize: 28, fontWeight: 700 }}>{value}</div>
+    <div style={{ marginBottom: 32, fontSize: 18 }}>
+      <a href="/dashboard" style={linkStyle}>Dashboard</a>
+      <a href="/orders" style={linkStyle}>Orders</a>
+      <a href="/wallet" style={linkStyle}>Wallet</a>
+      <a href="/support" style={linkStyle}>Support</a>
     </div>
   );
 }
+
+function Card({ title, value }) {
+  return (
+    <div style={cardStyle}>
+      <div style={{ color: "#aaa", marginBottom: 10 }}>{title}</div>
+      <div style={{ fontSize: 34, fontWeight: 700 }}>{value}</div>
+    </div>
+  );
+}
+
+const pageStyle = {
+  minHeight: "100vh",
+  background: "#000",
+  color: "#fff",
+  padding: 24,
+};
+
+const headerRowStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginBottom: 30,
+};
+
+const gridStyle = {
+  display: "grid",
+  gap: 16,
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+};
+
+const cardStyle = {
+  background: "#111",
+  border: "1px solid #222",
+  borderRadius: 18,
+  padding: 20,
+};
+
+const errorStyle = {
+  background: "#4a1414",
+  border: "1px solid #8a2f2f",
+  color: "#ffb8b8",
+  padding: 14,
+  borderRadius: 14,
+  marginBottom: 20,
+};
+
+const logoutStyle = {
+  height: 56,
+  padding: "0 24px",
+  borderRadius: 18,
+  border: "1px solid #2f2f2f",
+  background: "#111",
+  color: "#fff",
+  cursor: "pointer",
+};
+
+const linkStyle = {
+  color: "#fff",
+  marginRight: 18,
+};
