@@ -106,3 +106,11 @@ app.get("/api/orders", (req, res) => {
     ]
   });
 });
+app.get("/api/dashboard/stats", (req, res) => {
+  res.json({
+    walletBalance: 1200,
+    todayRevenue: 320,
+    orders: 45,
+    activeResellers: 5,
+  });
+});
