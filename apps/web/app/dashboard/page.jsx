@@ -62,6 +62,13 @@ export default function DashboardPage() {
         padding: 24,
       }}
     >
+      <div style={{ marginBottom: 24 }}>
+        <a href="/dashboard" style={{ color: "#fff", marginRight: 12 }}>Dashboard</a>
+        <a href="/orders" style={{ color: "#fff", marginRight: 12 }}>Orders</a>
+        <a href="/wallet" style={{ color: "#fff", marginRight: 12 }}>Wallet</a>
+        <a href="/support" style={{ color: "#fff", marginRight: 12 }}>Support</a>
+      </div>
+
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 24 }}>
         <h1>Dashboard</h1>
         <button
@@ -124,9 +131,3 @@ function Card({ title, value }) {
     </div>
   );
 }
-<div style={{ marginBottom: 20 }}>
-  <a href="/dashboard">Dashboard</a> |{" "}
-  <a href="/orders">Orders</a> |{" "}
-  <a href="/wallet">Wallet</a> |{" "}
-  <a href="/support">Support</a>
-</div>
