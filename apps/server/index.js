@@ -1,4 +1,4 @@
-const express = require("express");
+ const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
@@ -87,6 +87,22 @@ app.get("/api/orders", (_req, res) => {
   res.json({
     orders: [
       { id: "ORD-1", plan: "Europe 200GB", status: "Completed", amount: 35, country: "Germany" }
+    ]
+  });
+});
+app.get("/api/dashboard/stats", (req, res) => {
+  res.json({
+    walletBalance: 1200,
+    todayRevenue: 320,
+    orders: 45,
+    activeResellers: 5,
+  });
+});
+app.get("/api/orders", (req, res) => {
+  res.json({
+    orders: [
+      { id: "ORD-1", plan: "Europe 200GB", status: "Completed", amount: 35, country: "Germany" },
+      { id: "ORD-2", plan: "Global 300GB", status: "Pending", amount: 40, country: "France" }
     ]
   });
 });
