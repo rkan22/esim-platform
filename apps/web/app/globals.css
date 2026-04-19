@@ -1,5 +1,7 @@
-body {
+html, body {
+  margin: 0;
+  padding: 0;
   background: black;
   color: white;
-  font-family: system-ui;
+  font-family: Arial, sans-serif;
 }
