@@ -27,6 +27,20 @@ const users = [
   },
 ];
 
+const orders = [
+  { id: "ORD-1", plan: "Europe 200GB", status: "Completed", amount: 35, country: "Germany" },
+  { id: "ORD-2", plan: "Global 300GB", status: "Pending", amount: 40, country: "France" },
+  { id: "ORD-3", plan: "Europe 400GB", status: "Completed", amount: 45, country: "Italy" },
+];
+
+const walletTransactions = [
+  { id: "TX-1", type: "Top-up", amount: 500, status: "Completed" },
+  { id: "TX-2", type: "Order", amount: -35, status: "Completed" },
+  { id: "TX-3", type: "Order", amount: -40, status: "Pending" },
+];
+
+const supportTickets = [];
+
 function signToken(user) {
   return jwt.sign(
     {
@@ -42,9 +56,7 @@ function signToken(user) {
 
 function auth(req, res, next) {
   const authHeader = req.headers.authorization || "";
-  const token = authHeader.startsWith("Bearer ")
-    ? authHeader.slice(7)
-    : "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
 
   if (!token) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -96,9 +108,7 @@ app.post("/api/auth/login", async (req, res) => {
 });
 
 app.get("/api/auth/me", auth, (req, res) => {
-  res.json({
-    user: req.user,
-  });
+  res.json({ user: req.user });
 });
 
 app.get("/api/dashboard/stats", auth, (req, res) => {
@@ -111,16 +121,18 @@ app.get("/api/dashboard/stats", auth, (req, res) => {
 });
 
 app.get("/api/orders", auth, (_req, res) => {
-  res.json({
-    orders: [
-      { id: "ORD-1", plan: "Europe 200GB", status: "Completed" },
-      { id: "ORD-2", plan: "Global 300GB", status: "Pending" },
-    ],
-  });
+  res.json({ orders });
 });
 
 app.get("/api/wallet", auth, (_req, res) => {
-  res.json({ balance: 1200 });
+  res.json({
+    balance: 1200,
+    transactions: walletTransactions,
+  });
+});
+
+app.get("/api/support", auth, (_req, res) => {
+  res.json({ tickets: supportTickets });
 });
 
 app.post("/api/support", auth, (req, res) => {
@@ -130,9 +142,18 @@ app.post("/api/support", auth, (req, res) => {
     return res.status(400).json({ error: "Message is required" });
   }
 
+  const ticket = {
+    id: `TCK-${Date.now()}`,
+    message,
+    status: "Open",
+    createdBy: req.user.email,
+  };
+
+  supportTickets.unshift(ticket);
+
   res.status(201).json({
     ok: true,
-    ticketId: `TCK-${Date.now()}`,
+    ticket,
   });
 });
 
