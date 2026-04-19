@@ -83,3 +83,10 @@ app.get("/api/orders", auth, (_req, res) => {
     ]
   });
 });
+app.get("/api/orders", (_req, res) => {
+  res.json({
+    orders: [
+      { id: "ORD-1", plan: "Europe 200GB", status: "Completed", amount: 35, country: "Germany" }
+    ]
+  });
+});
