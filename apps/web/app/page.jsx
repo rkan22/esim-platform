@@ -49,13 +49,14 @@ async function login() {
       body: JSON.stringify({ email, password }),
     });
 
-    const data = await res.json();
+    const json = await res.json(); // 👈 data değil json
 
     if (!res.ok) {
-      throw new Error(data.error || "Login failed");
+      throw new Error(json.error || "Login failed");
     }
 
-    localStorage.setItem("esim_platform_token", data.accessToken);
+    // 👇 BURASI ÖNEMLİ
+    localStorage.setItem("esim_platform_token", json.accessToken);
     localStorage.setItem("esim_platform_api_base", api);
 
     router.push("/dashboard");
