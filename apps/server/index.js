@@ -74,3 +74,12 @@ app.post("/api/support", (req, res) => {
 
   res.json({ success: true, ticket });
 });
+app.get("/api/orders", auth, (_req, res) => {
+  res.json({
+    orders: [
+      { id: "ORD-1", plan: "Europe 200GB", status: "Completed", amount: 35, country: "Germany" },
+      { id: "ORD-2", plan: "Global 300GB", status: "Pending", amount: 40, country: "France" },
+      { id: "ORD-3", plan: "Europe 400GB", status: "Completed", amount: 45, country: "Italy" }
+    ]
+  });
+});
