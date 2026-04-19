@@ -44,7 +44,7 @@ export default function LoginPage() {
 
     try {
       const result = await loginRequest(apiBase, email, password);
-
+      localStorage.setItem("esim_platform_token", data.accessToken);
       localStorage.setItem(TOKEN_KEY, result.accessToken);
       localStorage.setItem(API_BASE_KEY, apiBase.trim().replace(/\/$/, ""));
 
