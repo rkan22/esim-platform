@@ -83,21 +83,6 @@ app.get("/api/orders", auth, (_req, res) => {
     ]
   });
 });
-app.get("/api/orders", (_req, res) => {
-  res.json({
-    orders: [
-      { id: "ORD-1", plan: "Europe 200GB", status: "Completed", amount: 35, country: "Germany" }
-    ]
-  });
-});
-app.get("/api/dashboard/stats", (req, res) => {
-  res.json({
-    walletBalance: 1200,
-    todayRevenue: 320,
-    orders: 45,
-    activeResellers: 5,
-  });
-});
 app.get("/api/orders", (req, res) => {
   res.json({
     orders: [
@@ -106,6 +91,7 @@ app.get("/api/orders", (req, res) => {
     ]
   });
 });
+
 app.get("/api/dashboard/stats", (req, res) => {
   res.json({
     walletBalance: 1200,
