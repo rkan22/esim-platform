@@ -2,7 +2,7 @@ import "./globals.css";
 
 export const metadata = {
   title: "eSIM Platform",
-  description: "Dashboard",
+  description: "Login + Dashboard",
 };
 
 export default function RootLayout({ children }) {
