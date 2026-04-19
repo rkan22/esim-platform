@@ -37,24 +37,32 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleLogin(e) {
-    e.preventDefault();
-    setLoading(true);
+async function login() {
+  try {
     setError("");
 
-    try {
-      const result = await loginRequest(apiBase, email, password);
-      localStorage.setItem("esim_platform_token", data.accessToken);
-      localStorage.setItem(TOKEN_KEY, result.accessToken);
-      localStorage.setItem(API_BASE_KEY, apiBase.trim().replace(/\/$/, ""));
+    const res = await fetch(`${api}/api/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, password }),
+    });
 
-      router.push("/dashboard");
-    } catch (err) {
-      setError(err.message || "Login failed");
-    } finally {
-      setLoading(false);
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Login failed");
     }
+
+    localStorage.setItem("esim_platform_token", data.accessToken);
+    localStorage.setItem("esim_platform_api_base", api);
+
+    router.push("/dashboard");
+  } catch (err) {
+    setError(err.message || "Error");
   }
+}
 
   return (
     <main
