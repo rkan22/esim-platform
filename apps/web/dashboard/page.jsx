@@ -124,3 +124,9 @@ function Card({ title, value }) {
     </div>
   );
 }
+<div style={{ marginBottom: 20 }}>
+  <a href="/dashboard">Dashboard</a> |{" "}
+  <a href="/orders">Orders</a> |{" "}
+  <a href="/wallet">Wallet</a> |{" "}
+  <a href="/support">Support</a>
+</div>
