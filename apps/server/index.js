@@ -180,3 +180,93 @@ function adminOnly(req, res, next) {
   }
   next();
 }
+app.get("/api/admin/users", auth, adminOnly, (_req, res) => {
+  const safeUsers = users.map((u) => ({
+    id: u.id,
+    email: u.email,
+    role: u.role,
+    name: u.name,
+  }));
+
+  res.json({ users: safeUsers });
+});
+
+app.post("/api/admin/users", auth, adminOnly, async (req, res) => {
+  const { email, password, role, name } = req.body || {};
+
+  if (!email || !password || !role || !name) {
+    return res.status(400).json({ error: "email, password, role, name are required" });
+  }
+
+  const exists = users.find((u) => u.email === email);
+  if (exists) {
+    return res.status(400).json({ error: "User already exists" });
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+
+  const user = {
+    id: `u_${Date.now()}`,
+    email,
+    passwordHash,
+    role,
+    name,
+  };
+
+  users.push(user);
+
+  res.status(201).json({
+    user: {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      name: user.name,
+    },
+  });
+});
+
+app.put("/api/admin/users/:id/role", auth, adminOnly, (req, res) => {
+  const { id } = req.params;
+  const { role } = req.body || {};
+
+  if (!role) {
+    return res.status(400).json({ error: "role is required" });
+  }
+
+  const user = users.find((u) => u.id === id);
+  if (!user) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+  user.role = role;
+
+  res.json({
+    user: {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      name: user.name,
+    },
+  });
+});
+
+app.delete("/api/admin/users/:id", auth, adminOnly, (req, res) => {
+  const { id } = req.params;
+  const index = users.findIndex((u) => u.id === id);
+
+  if (index === -1) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+  const removed = users.splice(index, 1)[0];
+
+  res.json({
+    ok: true,
+    deletedUser: {
+      id: removed.id,
+      email: removed.email,
+      role: removed.role,
+      name: removed.name,
+    },
+  });
+});
