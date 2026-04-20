@@ -73,6 +73,7 @@ export default function DashboardPage() {
             </div>
 
             <nav className="space-y-2">
+              <a href="/admin" className="mr-4">Admin</a>
               <NavLink href="/dashboard" label="Dashboard" active />
               <NavLink href="/orders" label="Orders" />
               <NavLink href="/wallet" label="Wallet" />
