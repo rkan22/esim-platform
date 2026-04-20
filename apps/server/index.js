@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const prisma = require("./db");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -9,35 +10,6 @@ const JWT_SECRET = process.env.JWT_SECRET || "super-secret-production-key";
 
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
-
-const users = [
-  {
-    id: "u_1",
-    email: "admin@demo.com",
-    passwordHash: bcrypt.hashSync("123456", 10),
-    role: "admin",
-    name: "Admin Demo",
-  },
-  {
-    id: "u_2",
-    email: "reseller@demo.com",
-    passwordHash: bcrypt.hashSync("123456", 10),
-    role: "reseller",
-    name: "Reseller Demo",
-  },
-];
-
-const orders = [
-  { id: "ORD-1", plan: "Europe 200GB", status: "Completed", amount: 35, country: "Germany" },
-  { id: "ORD-2", plan: "Global 300GB", status: "Pending", amount: 40, country: "France" },
-];
-
-const walletTransactions = [
-  { id: "TX-1", type: "Top-up", amount: 500, status: "Completed" },
-  { id: "TX-2", type: "Order", amount: -35, status: "Completed" },
-];
-
-const supportTickets = [];
 
 function signToken(user) {
   return jwt.sign(
@@ -86,12 +58,16 @@ app.post("/api/auth/login", async (req, res) => {
     return res.status(400).json({ error: "Email and password are required" });
   }
 
-  const user = users.find((u) => u.email === email);
+  const user = await prisma.user.findUnique({
+    where: { email },
+  });
+
   if (!user) {
     return res.status(401).json({ error: "Invalid credentials" });
   }
 
   const ok = await bcrypt.compare(password, user.passwordHash);
+
   if (!ok) {
     return res.status(401).json({ error: "Invalid credentials" });
   }
@@ -113,57 +89,99 @@ app.get("/api/auth/me", auth, (req, res) => {
   res.json({ user: req.user });
 });
 
-app.get("/api/dashboard/stats", auth, (req, res) => {
+app.get("/api/dashboard/stats", auth, async (req, res) => {
+  const orderWhere = req.user.role === "admin" ? {} : { userId: req.user.sub };
+
+  const ordersCount = await prisma.order.count({ where: orderWhere });
+
+  const revenueAgg = await prisma.order.aggregate({
+    where: {
+      ...orderWhere,
+      status: "Completed",
+    },
+    _sum: { amount: true },
+  });
+
+  const txWhere = req.user.role === "admin" ? {} : { userId: req.user.sub };
+
+  const walletAgg = await prisma.walletTransaction.aggregate({
+    where: txWhere,
+    _sum: { amount: true },
+  });
+
+  const activeResellers =
+    req.user.role === "admin"
+      ? await prisma.user.count({ where: { role: "reseller" } })
+      : 0;
+
   res.json({
-    walletBalance: req.user.role === "admin" ? 12000 : 1200,
-    todayRevenue: req.user.role === "admin" ? 3200 : 320,
-    orders: req.user.role === "admin" ? 245 : 45,
-    activeResellers: req.user.role === "admin" ? 12 : 0,
+    walletBalance: walletAgg._sum.amount || 0,
+    todayRevenue: revenueAgg._sum.amount || 0,
+    orders: ordersCount,
+    activeResellers,
   });
 });
 
-app.get("/api/orders", auth, (_req, res) => {
+app.get("/api/orders", auth, async (req, res) => {
+  const orders = await prisma.order.findMany({
+    where: req.user.role === "admin" ? {} : { userId: req.user.sub },
+    orderBy: { createdAt: "desc" },
+  });
+
   res.json({ orders });
 });
 
-app.get("/api/wallet", auth, (_req, res) => {
-  res.json({
-    balance: 1200,
-    transactions: walletTransactions,
+app.get("/api/wallet", auth, async (req, res) => {
+  const transactions = await prisma.walletTransaction.findMany({
+    where: req.user.role === "admin" ? {} : { userId: req.user.sub },
+    orderBy: { createdAt: "desc" },
   });
+
+  const balance = transactions.reduce((sum, tx) => sum + Number(tx.amount), 0);
+
+  res.json({ balance, transactions });
 });
 
-app.get("/api/support", auth, (_req, res) => {
-  res.json({ tickets: supportTickets });
+app.get("/api/support", auth, async (req, res) => {
+  const tickets = await prisma.supportTicket.findMany({
+    where: req.user.role === "admin" ? {} : { userId: req.user.sub },
+    orderBy: { createdAt: "desc" },
+  });
+
+  res.json({ tickets });
 });
 
-app.post("/api/support", auth, (req, res) => {
+app.post("/api/support", auth, async (req, res) => {
   const { message } = req.body || {};
 
   if (!message) {
     return res.status(400).json({ error: "Message is required" });
   }
 
-  const ticket = {
-    id: `TCK-${Date.now()}`,
-    message,
-    status: "Open",
-    createdBy: req.user.email,
-  };
+  const ticket = await prisma.supportTicket.create({
+    data: {
+      message,
+      status: "Open",
+      userId: req.user.sub,
+    },
+  });
 
-  supportTickets.unshift(ticket);
   res.status(201).json({ ok: true, ticket });
 });
 
-app.get("/api/admin/users", auth, adminOnly, (_req, res) => {
-  const safeUsers = users.map((u) => ({
-    id: u.id,
-    email: u.email,
-    role: u.role,
-    name: u.name,
-  }));
+app.get("/api/admin/users", auth, adminOnly, async (_req, res) => {
+  const users = await prisma.user.findMany({
+    orderBy: { createdAt: "desc" },
+  });
 
-  res.json({ users: safeUsers });
+  res.json({
+    users: users.map((u) => ({
+      id: u.id,
+      email: u.email,
+      role: u.role,
+      name: u.name,
+    })),
+  });
 });
 
 app.post("/api/admin/users", auth, adminOnly, async (req, res) => {
@@ -173,24 +191,26 @@ app.post("/api/admin/users", auth, adminOnly, async (req, res) => {
     return res.status(400).json({ error: "Missing fields" });
   }
 
-  const exists = users.find((u) => u.email === email);
+  const exists = await prisma.user.findUnique({
+    where: { email },
+  });
+
   if (exists) {
     return res.status(400).json({ error: "User exists" });
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
 
-  const user = {
-    id: "u_" + Date.now(),
-    email,
-    passwordHash,
-    role,
-    name,
-  };
+  const user = await prisma.user.create({
+    data: {
+      email,
+      passwordHash,
+      role,
+      name,
+    },
+  });
 
-  users.push(user);
-
-  res.json({
+  res.status(201).json({
     user: {
       id: user.id,
       email: user.email,
@@ -200,7 +220,7 @@ app.post("/api/admin/users", auth, adminOnly, async (req, res) => {
   });
 });
 
-app.put("/api/admin/users/:id/role", auth, adminOnly, (req, res) => {
+app.put("/api/admin/users/:id/role", auth, adminOnly, async (req, res) => {
   const { id } = req.params;
   const { role } = req.body || {};
 
@@ -208,12 +228,10 @@ app.put("/api/admin/users/:id/role", auth, adminOnly, (req, res) => {
     return res.status(400).json({ error: "role is required" });
   }
 
-  const user = users.find((u) => u.id === id);
-  if (!user) {
-    return res.status(404).json({ error: "User not found" });
-  }
-
-  user.role = role;
+  const user = await prisma.user.update({
+    where: { id },
+    data: { role },
+  });
 
   res.json({
     user: {
@@ -225,23 +243,20 @@ app.put("/api/admin/users/:id/role", auth, adminOnly, (req, res) => {
   });
 });
 
-app.delete("/api/admin/users/:id", auth, adminOnly, (req, res) => {
+app.delete("/api/admin/users/:id", auth, adminOnly, async (req, res) => {
   const { id } = req.params;
-  const index = users.findIndex((u) => u.id === id);
 
-  if (index === -1) {
-    return res.status(404).json({ error: "User not found" });
-  }
-
-  const removed = users.splice(index, 1)[0];
+  const user = await prisma.user.delete({
+    where: { id },
+  });
 
   res.json({
     ok: true,
     deletedUser: {
-      id: removed.id,
-      email: removed.email,
-      role: removed.role,
-      name: removed.name,
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      name: user.name,
     },
   });
 });
