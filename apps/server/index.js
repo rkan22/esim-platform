@@ -270,3 +270,53 @@ app.delete("/api/admin/users/:id", auth, adminOnly, (req, res) => {
     },
   });
 });
+function adminOnly(req, res, next) {
+  if (!req.user || req.user.role !== "admin") {
+    return res.status(403).json({ error: "Admin only" });
+  }
+  next();
+}
+app.get("/api/admin/users", auth, adminOnly, (req, res) => {
+  const safeUsers = users.map(u => ({
+    id: u.id,
+    email: u.email,
+    role: u.role,
+    name: u.name
+  }));
+
+  res.json({ users: safeUsers });
+});
+
+app.post("/api/admin/users", auth, adminOnly, async (req, res) => {
+  const { email, password, role, name } = req.body;
+
+  if (!email || !password || !role || !name) {
+    return res.status(400).json({ error: "Missing fields" });
+  }
+
+  const exists = users.find(u => u.email === email);
+  if (exists) {
+    return res.status(400).json({ error: "User exists" });
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+
+  const user = {
+    id: "u_" + Date.now(),
+    email,
+    passwordHash,
+    role,
+    name
+  };
+
+  users.push(user);
+
+  res.json({
+    user: {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      name: user.name
+    }
+  });
+});
