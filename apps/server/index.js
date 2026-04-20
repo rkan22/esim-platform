@@ -30,13 +30,11 @@ const users = [
 const orders = [
   { id: "ORD-1", plan: "Europe 200GB", status: "Completed", amount: 35, country: "Germany" },
   { id: "ORD-2", plan: "Global 300GB", status: "Pending", amount: 40, country: "France" },
-  { id: "ORD-3", plan: "Europe 400GB", status: "Completed", amount: 45, country: "Italy" },
 ];
 
 const walletTransactions = [
   { id: "TX-1", type: "Top-up", amount: 500, status: "Completed" },
   { id: "TX-2", type: "Order", amount: -35, status: "Completed" },
-  { id: "TX-3", type: "Order", amount: -40, status: "Pending" },
 ];
 
 const supportTickets = [];
@@ -70,6 +68,13 @@ function auth(req, res, next) {
   }
 }
 
+function adminOnly(req, res, next) {
+  if (!req.user || req.user.role !== "admin") {
+    return res.status(403).json({ error: "Admin only" });
+  }
+  next();
+}
+
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
@@ -82,20 +87,18 @@ app.post("/api/auth/login", async (req, res) => {
   }
 
   const user = users.find((u) => u.email === email);
-
   if (!user) {
     return res.status(401).json({ error: "Invalid credentials" });
   }
 
   const ok = await bcrypt.compare(password, user.passwordHash);
-
   if (!ok) {
     return res.status(401).json({ error: "Invalid credentials" });
   }
 
   const accessToken = signToken(user);
 
-  return res.json({
+  res.json({
     accessToken,
     user: {
       id: user.id,
@@ -111,20 +114,11 @@ app.get("/api/auth/me", auth, (req, res) => {
 });
 
 app.get("/api/dashboard/stats", auth, (req, res) => {
-  if (req.user.role === "admin") {
-    return res.json({
-      walletBalance: 12000,
-      todayRevenue: 3200,
-      orders: 245,
-      activeResellers: 12,
-    });
-  }
-
-  return res.json({
-    walletBalance: 1200,
-    todayRevenue: 320,
-    orders: 45,
-    activeResellers: 0,
+  res.json({
+    walletBalance: req.user.role === "admin" ? 12000 : 1200,
+    todayRevenue: req.user.role === "admin" ? 3200 : 320,
+    orders: req.user.role === "admin" ? 245 : 45,
+    activeResellers: req.user.role === "admin" ? 12 : 0,
   });
 });
 
@@ -158,28 +152,9 @@ app.post("/api/support", auth, (req, res) => {
   };
 
   supportTickets.unshift(ticket);
-
-  return res.status(201).json({
-    ok: true,
-    ticket,
-  });
+  res.status(201).json({ ok: true, ticket });
 });
 
-app.use((req, res) => {
-  res.status(404).json({
-    error: `Route not found: ${req.method} ${req.originalUrl}`,
-  });
-});
-
-app.listen(PORT, () => {
-  console.log(`API running on ${PORT}`);
-});
-function adminOnly(req, res, next) {
-  if (!req.user || req.user.role !== "admin") {
-    return res.status(403).json({ error: "Admin only" });
-  }
-  next();
-}
 app.get("/api/admin/users", auth, adminOnly, (_req, res) => {
   const safeUsers = users.map((u) => ({
     id: u.id,
@@ -195,18 +170,18 @@ app.post("/api/admin/users", auth, adminOnly, async (req, res) => {
   const { email, password, role, name } = req.body || {};
 
   if (!email || !password || !role || !name) {
-    return res.status(400).json({ error: "email, password, role, name are required" });
+    return res.status(400).json({ error: "Missing fields" });
   }
 
   const exists = users.find((u) => u.email === email);
   if (exists) {
-    return res.status(400).json({ error: "User already exists" });
+    return res.status(400).json({ error: "User exists" });
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
 
   const user = {
-    id: `u_${Date.now()}`,
+    id: "u_" + Date.now(),
     email,
     passwordHash,
     role,
@@ -215,7 +190,7 @@ app.post("/api/admin/users", auth, adminOnly, async (req, res) => {
 
   users.push(user);
 
-  res.status(201).json({
+  res.json({
     user: {
       id: user.id,
       email: user.email,
@@ -270,53 +245,13 @@ app.delete("/api/admin/users/:id", auth, adminOnly, (req, res) => {
     },
   });
 });
-function adminOnly(req, res, next) {
-  if (!req.user || req.user.role !== "admin") {
-    return res.status(403).json({ error: "Admin only" });
-  }
-  next();
-}
-app.get("/api/admin/users", auth, adminOnly, (req, res) => {
-  const safeUsers = users.map(u => ({
-    id: u.id,
-    email: u.email,
-    role: u.role,
-    name: u.name
-  }));
 
-  res.json({ users: safeUsers });
+app.use((req, res) => {
+  res.status(404).json({
+    error: `Route not found: ${req.method} ${req.originalUrl}`,
+  });
 });
 
-app.post("/api/admin/users", auth, adminOnly, async (req, res) => {
-  const { email, password, role, name } = req.body;
-
-  if (!email || !password || !role || !name) {
-    return res.status(400).json({ error: "Missing fields" });
-  }
-
-  const exists = users.find(u => u.email === email);
-  if (exists) {
-    return res.status(400).json({ error: "User exists" });
-  }
-
-  const passwordHash = await bcrypt.hash(password, 10);
-
-  const user = {
-    id: "u_" + Date.now(),
-    email,
-    passwordHash,
-    role,
-    name
-  };
-
-  users.push(user);
-
-  res.json({
-    user: {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      name: user.name
-    }
-  });
+app.listen(PORT, () => {
+  console.log(`API running on ${PORT}`);
 });
