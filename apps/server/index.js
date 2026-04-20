@@ -174,3 +174,9 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`API running on ${PORT}`);
 });
+function adminOnly(req, res, next) {
+  if (!req.user || req.user.role !== "admin") {
+    return res.status(403).json({ error: "Admin only" });
+  }
+  next();
+}
